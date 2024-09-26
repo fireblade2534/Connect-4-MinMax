@@ -1,8 +1,13 @@
+import copy
+class Board:
+    def __init__(self,Board):
+        self.Board=Board
+    @staticmethod
+    def CreateBlank(Width,Height):
+        return Board([[" " for X in range(Height)] for Y in range(Width)])
+    def CreateCopy(self):
+        return copy.deepcopy(self)
 class ConnectFour:
-    def __init__(self,Width:int,Height:int):
-        self.Width=Width
-        self.Height=Height
-        self.Board=[[" " for X in range(Height)] for Y in range(Width)]
 
     def DropPiece(self,Column:int,Piece:str):
         for Y in range(self.Height - 1,-1,-1):
@@ -10,4 +15,6 @@ class ConnectFour:
                 self.Board[Y]=Piece
                 break
     
-    def CheckWin(self,)
+    def CheckWin(self):
+        pass
+print("Few")

@@ -25,7 +25,7 @@ class BoardState:
 
     def IsWinningMove(self,Move:int):
         NewState=self.State+str(Move)
-        MovePos=(Move-1,self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
+        MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
         Board=BoardState._TranslateToBoard(NewState,self.Width,self.Height)
         
         if NewState.count(str(Move)) > 3:
@@ -35,17 +35,37 @@ class BoardState:
         RowN=0
         DiaN1=0
         DiaN2=0
+        #print(MovePos)
         for OX in range(-3,4):
             NewX=MovePos[0]+OX
+            NewY=MovePos[1]+OX
             if NewX >= 0 and NewX < self.Width:
                 if Board[MovePos[1]][NewX] == MovePos[2]:
                     RowN+=1
                 else:
                     RowN=0
-
                 if RowN >= self.WinLength:
                     return True
-
+                
+                
+                if NewY >=0 and NewY < self.Height:
+                    #print(NewX,NewY)
+                    if Board[NewY][NewX] == MovePos[2]:
+                        DiaN1+=1
+                    else:
+                        DiaN1=0
+                    if DiaN1 >= self.WinLength:
+                        return True
+            NewX=MovePos[0]-OX     
+            if NewX >= 0 and NewX < self.Width:
+                if NewY >=0 and NewY < self.Height:
+                    if Board[NewY][NewX] == MovePos[2]:
+                        DiaN2+=1
+                    else:
+                        DiaN2=0
+                    if DiaN2 >= self.WinLength:
+                        return True
+        return False
     @staticmethod
     def _FormatPiece(Piece):
         if Piece == 1:
@@ -199,10 +219,15 @@ def NegMax(Board:BoardState,MoveNumber:int):
 
 
 #B=BoardState.CreateBlank(7,6)
-Moves="336655"
+Moves="1224334534"
 B=BoardState(Moves,7,6)
 B.Render()
-print(B.IsWinningMove(4))
+
+#CHECK OTHER DIAG
+Move=4
+print(B.IsWinningMove(Move))
+B.State+=str(Move)
+B.Render()
 
 """
 for N,X in enumerate(Moves):

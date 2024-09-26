@@ -1,15 +1,57 @@
 import copy
 class BoardState:
-    def __init__(self,Board):
-        self.Board=Board
-    @staticmethod
-    def CreateBlank(Width,Height):
-        return BoardState([[" " for X in range(Width)] for Y in range(Height)])
-    def CreateCopy(self):
-        return copy.deepcopy(self)
+    def __init__(self,State:str,Width:int,Height:int,WinLength:int=4):
+        self.State=str(State)
+        self.Width=Width
+        self.Height=Height
+        self.WinLength=WinLength
+    def ColFull(self,Column:int):
+        return self.State.count(str(Column)) >= self.Width
     
+    def BoardFull(self):
+        return len(self.State) >= self.Width * self.Height
+    
+    @staticmethod
+    def _TranslateToBoard(State:str,Width:int,Height:int):
+        Board=[[0 for X in range(Width)] for Y in range(Height)]
+        for N,Move in enumerate(State):
+            for Y in range(len(Board) - 1,-1,-1):
+                if Board[Y][int(Move)-1] == 0:
+                    Board[Y][int(Move)-1]=1 if N%2==0 else 2
+                    break
+        return Board
+
+    
+
+    def IsWinningMove(self,Move:int):
+        NewState=self.State+str(Move)
+        MovePos=(Move-1,self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
+        Board=BoardState._TranslateToBoard(NewState,self.Width,self.Height)
+        
+        if NewState.count(str(Move)) > 3:
+            if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
+                return True
+        
+
+    @staticmethod
+    def _FormatPiece(Piece):
+        if Piece == 1:
+            return "🔴"
+        if Piece == 2:
+            return "🟡"
+        if Piece == 0:
+            return "  "
+    
+    def Render(self):
+        Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
+        Output=[]
+        for Y in range(self.Height):
+            Output.append("|".join([BoardState._FormatPiece(Board[Y][X]) for X in range(self.Width)]))
+        print(f"\n{('--+'*self.Width)[:-1]}\n".join(Output))
+
 def _AllSame(List):
     return len(set(List)) == 1
+
 class ConnectFour:
     WinNumber=4
     @staticmethod
@@ -109,14 +151,7 @@ class ConnectFour:
         
         return [False]
 
-    @staticmethod
-    def _FormatPiece(Piece):
-        if Piece == "R":
-            return "🔴"
-        if Piece == "Y":
-            return "🟡"
-        if Piece == " ":
-            return "  "
+    
 
     @staticmethod
     def Render(Board):
@@ -150,11 +185,16 @@ def NegMax(Board:BoardState,MoveNumber:int):
 
 
 
-B=BoardState.CreateBlank(7,6)
+#B=BoardState.CreateBlank(7,6)
+Moves="121221"
+B=BoardState(Moves,7,6)
+B.Render()
+print(B.IsWinningMove(1))
 
-Moves="75662564375666511575212332122171447733"
+"""
 for N,X in enumerate(Moves):
     ConnectFour.DropPiece(B,int(X)-1,"Y" if N%2==0 else "R")
 ConnectFour.Render(B)
 print(NegMax(B,len(Moves)))
-#print(ConnectFour.CheckWin(B))
+"""
+

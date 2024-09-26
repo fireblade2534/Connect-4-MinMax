@@ -1,10 +1,10 @@
 import copy
-class Board:
+class BoardState:
     def __init__(self,Board):
         self.Board=Board
     @staticmethod
     def CreateBlank(Width,Height):
-        return Board([[" " for X in range(Width)] for Y in range(Height)])
+        return BoardState([[" " for X in range(Width)] for Y in range(Height)])
     def CreateCopy(self):
         return copy.deepcopy(self)
     
@@ -84,13 +84,13 @@ class ConnectFour:
             CounterY+=1
         return [False]
 
+
     @staticmethod
-    def _IsFull(Board):
-        for X in Board.Board:
-            for Y in X:
-                if Y == " ":
-                    return [False]
-        return [True," "]
+    def ColFull(Board,Column):
+        for Y in Board.Board:
+            if Y[Column] == " ":
+                return False
+        return True
 
     @staticmethod
     def CheckWin(Board):
@@ -106,9 +106,6 @@ class ConnectFour:
         if ColCheck[0] == True:
             return ColCheck
         
-        FullCheck=ConnectFour._IsFull(Board)
-        if FullCheck[0] == True:
-            return FullCheck
         
         return [False]
 
@@ -130,11 +127,34 @@ class ConnectFour:
             Output.append("|".join([ConnectFour._FormatPiece(Board.Board[Y][X]) for X in range(Width)]))
         print(f"\n{('--+'*Width)[:-1]}\n".join(Output))
 
+def NegMax(Board:BoardState,MoveNumber:int):
+    Width=len(Board.Board[0])
+    Height=len(Board.Board)
+    ColumnStates=[ConnectFour.ColFull(Board,X) for X in range(Width)]
+    if all(ColumnStates) == True:
+        return 0
+    
+    BestScore=-Width * Height 
+    #In the future implement it so that it only checks around the dropped peice for if its a win
+    for X in range(0,Width):
+        if ColumnStates[X] == False:
+            NewBoard=Board.CreateCopy()
+            ConnectFour.DropPiece(NewBoard,X,"Y" if MoveNumber%2 == 0 else "R")
+            if ConnectFour.CheckWin(NewBoard)[0] == True:
+                return (((Width*Height)+1)-MoveNumber)//2
+            Score=-NegMax(NewBoard,MoveNumber+1)
+            if Score > BestScore:
+                BestScore=Score
+    return BestScore
 
 
-B=Board.CreateBlank(7,6)
-ConnectFour.DropPiece(B,4,"R")
-ConnectFour.DropPiece(B,3,"Y")
-ConnectFour.DropPiece(B,3,"R")
+
+
+B=BoardState.CreateBlank(7,6)
+
+Moves="75662564375666511575212332122171447733"
+for N,X in enumerate(Moves):
+    ConnectFour.DropPiece(B,int(X)-1,"Y" if N%2==0 else "R")
 ConnectFour.Render(B)
-print(ConnectFour.CheckWin(B))
+print(NegMax(B,len(Moves)))
+#print(ConnectFour.CheckWin(B))

@@ -32,6 +32,19 @@ class BoardState:
             if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
                 return True
         
+        RowN=0
+        DiaN1=0
+        DiaN2=0
+        for OX in range(-3,4):
+            NewX=MovePos[0]+OX
+            if NewX >= 0 and NewX < self.Width:
+                if Board[MovePos[1]][NewX] == MovePos[2]:
+                    RowN+=1
+                else:
+                    RowN=0
+
+                if RowN >= self.WinLength:
+                    return True
 
     @staticmethod
     def _FormatPiece(Piece):
@@ -186,10 +199,10 @@ def NegMax(Board:BoardState,MoveNumber:int):
 
 
 #B=BoardState.CreateBlank(7,6)
-Moves="121221"
+Moves="336655"
 B=BoardState(Moves,7,6)
 B.Render()
-print(B.IsWinningMove(1))
+print(B.IsWinningMove(4))
 
 """
 for N,X in enumerate(Moves):

@@ -218,5 +218,6 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With O1 transposition table - 0.2765
 #With strings in board list - 0.2647
 #With transpostion table size 1024 - 0.1632602
+
 #Test_L1_r1:
 #Inital - N/A

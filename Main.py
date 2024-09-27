@@ -41,11 +41,11 @@ class BoardState:
 
     @staticmethod
     def _TranslateToBoard(State:str,Width:int,Height:int):
-        Board=[[0 for X in range(Width)] for Y in range(Height)]
+        Board=[["0" for X in range(Width)] for Y in range(Height)]
         for N,Move in enumerate(State):
             for Y in range(Height - 1,-1,-1):
-                if Board[Y][int(Move)-1] == 0:
-                    Board[Y][int(Move)-1]=1 if N%2==0 else 2
+                if Board[Y][int(Move)-1] == "0":
+                    Board[Y][int(Move)-1]="1" if N%2==0 else "2"
                     break
         return Board
 
@@ -54,7 +54,7 @@ class BoardState:
     def IsWinningMove(self,Move:int):
         Move+=1
         NewState=self.State+str(Move)
-        MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
+        MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,"1" if len(self.State)%2==0 else "2")
         #Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
         
         #print(MovePos)
@@ -106,11 +106,11 @@ class BoardState:
         return False
     @staticmethod
     def _FormatPiece(Piece):
-        if Piece == 1:
+        if Piece == "1":
             return "🔴"
-        if Piece == 2:
+        if Piece == "2":
             return "🟡"
-        if Piece == 0:
+        if Piece == "0":
             return "  "
     
     def Render(self):
@@ -140,9 +140,8 @@ class NegMaxSolver:
         #TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
         Hash=[]
         for X in Board.Board:
-            Hash+=[str(Y) for Y in X]
+            Hash+=X#[str(Y) for Y in X]
         Hash="".join(Hash)
-        
         Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
         
         Transvalue=int(TransTable.Get(Hash))
@@ -216,3 +215,4 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With Claude compute board list in init - 0.407150009
 #With fixed tranposition table - 0.2904
 #With O1 transposition table - 0.2765
+#With strings in board list - 0.2647

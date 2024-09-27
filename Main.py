@@ -1,4 +1,10 @@
 import copy
+import math
+import time
+class TranspositionTable:
+    def __init__(self,Size:int=81):
+        
+
 class BoardState:
     def __init__(self,State:str,Width:int,Height:int,WinLength:int=4):
         self.State=str(State)
@@ -6,16 +12,19 @@ class BoardState:
         self.Height=Height
         self.WinLength=WinLength
     def ColFull(self,Column:int):
-        return self.State.count(str(Column)) >= self.Width
+        return self.State.count(str(Column+1)) >= self.Height
     
     def BoardFull(self):
         return len(self.State) >= self.Width * self.Height
     
+    def MoveNumber(self):
+        return len(self.State)
+
     @staticmethod
     def _TranslateToBoard(State:str,Width:int,Height:int):
         Board=[[0 for X in range(Width)] for Y in range(Height)]
         for N,Move in enumerate(State):
-            for Y in range(len(Board) - 1,-1,-1):
+            for Y in range(Height - 1,-1,-1):
                 if Board[Y][int(Move)-1] == 0:
                     Board[Y][int(Move)-1]=1 if N%2==0 else 2
                     break
@@ -24,10 +33,12 @@ class BoardState:
     
 
     def IsWinningMove(self,Move:int):
+        Move=Move+1
         NewState=self.State+str(Move)
         MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
         Board=BoardState._TranslateToBoard(NewState,self.Width,self.Height)
-        
+        #print(MovePos)
+        #BoardState(NewState,self.Width,self.Height).Render()
         if NewState.count(str(Move)) > 3:
             if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
                 return True
@@ -81,158 +92,81 @@ class BoardState:
         for Y in range(self.Height):
             Output.append("|".join([BoardState._FormatPiece(Board[Y][X]) for X in range(self.Width)]))
         print(f"\n{('--+'*self.Width)[:-1]}\n".join(Output))
-
-def _AllSame(List):
-    return len(set(List)) == 1
-
-class ConnectFour:
-    WinNumber=4
+class NegMaxSolver:
+    MoveOrder=[]
     @staticmethod
-    def DropPiece(Board,Column:int,Piece:str):
-        for Y in range(len(Board.Board) - 1,-1,-1):
-            if Board.Board[Y][Column] == " ":
-                Board.Board[Y][Column]=Piece
-                break
-        return Board
-    
-    
+    def InitMoveOrder(Width:int):
+        for X in range(0,Width):
+            NegMaxSolver.MoveOrder.append((Width//2)+(-X//2 if X%2==0 else math.ceil(X/2)))
     @staticmethod
-    def _CheckDiagonals(Board):
-        Width=len(Board.Board[0])
-        Height=len(Board.Board)
-        CounterX=0
-        while CounterX <= Width - ConnectFour.WinNumber or CounterX == 0:
-            
-            CounterY=0
-            while CounterY <= Height - ConnectFour.WinNumber or CounterY == 0:
+    def NegMax(Board:BoardState,Alpha:int,Beta:int):
+        ColumnStates=[Board.ColFull(X) for X in range(Board.Width)]
+        #print("Col States",ColumnStates)
+        if all(ColumnStates) == True:
+            return 0
+        
+        for X in range(0,Board.Width):
+            if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
+                if Board.IsWinningMove(NegMaxSolver.MoveOrder[X]):
+                    return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
+
+        Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
+        if Beta > Max:
+            Beta=Max
+            if Alpha >= Beta:
+                return Beta
+    
+        for X in range(0,Board.Width):
+            if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
                 
-                ListRD=[]
-                for A in range(0,ConnectFour.WinNumber):
-                    #print(CounterX + A, CounterY + A,"R")
-                    ListRD.append(Board.Board[CounterY + A][CounterX + A])
-               
-
-
-                ListLD=[]
-                for A in range(0,ConnectFour.WinNumber):
-                    #print(CounterX + A, len(self.Board[CounterX]) - (CounterY + A) - 1,"L")
-                    ListLD.append(Board.Board[Height - (CounterY + A) - 1][CounterX + A])
-
-
-                if _AllSame(ListLD) and ListLD[0] != " ":
-                    return [True,ListLD[0]]
-                if _AllSame(ListRD) and ListRD[0] != " ":
-                    return [True,ListRD[0]]
-                CounterY+=1
-            CounterX+=1
-        return [False]
-    
+                NewBoard=BoardState(f"{Board.State}{NegMaxSolver.MoveOrder[X]+1}",Board.Width,Board.Height,Board.WinLength)
+                
+                Score=-NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha)
+                if Score >= Beta:
+                    return Score
+                if Score > Alpha:
+                    Alpha=Score
+        return Alpha
     @staticmethod
-    def _CheckRow(Board):
-        Width=len(Board.Board[0])
-        Height=len(Board.Board)
-        CounterX=0
-        while CounterX <= Width - ConnectFour.WinNumber or CounterX == 0:
-            for Y in range(Height):
-                List=[]
-                for A in range(ConnectFour.WinNumber):
-                    List.append(Board.Board[Y][CounterX + A])
-                #print(List)
-                if _AllSame(List) and List[0] != " ":
-                    return [True,List[0]]
-            CounterX+=1
-        return [False]
+    def Solve(Board:BoardState):
+        Min=-(((Board.Width*Board.Height))-Board.MoveNumber())//2
+        Max=(((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
 
-    @staticmethod
-    def _CheckCol(Board):
-        Width=len(Board.Board[0])
-        Height=len(Board.Board)
-        CounterY=0
-        while CounterY <= Height - ConnectFour.WinNumber or CounterY == 0:
-            for X in range(Width):
-                List=[]
-                for A in range(ConnectFour.WinNumber):
-                    List.append(Board.Board[CounterY + A][X])
-                #print(List)
-                if _AllSame(List) and List[0] != " ":
-                    return [True,List[0]]
-            CounterY+=1
-        return [False]
-
-
-    @staticmethod
-    def ColFull(Board,Column):
-        for Y in Board.Board:
-            if Y[Column] == " ":
-                return False
-        return True
-
-    @staticmethod
-    def CheckWin(Board):
-        DiaCheck=ConnectFour._CheckDiagonals(Board)
-        if DiaCheck[0] == True:
-            return DiaCheck
-        
-        RowCheck=ConnectFour._CheckRow(Board)
-        if RowCheck[0] == True:
-            return RowCheck
-        
-        ColCheck=ConnectFour._CheckCol(Board)
-        if ColCheck[0] == True:
-            return ColCheck
-        
-        
-        return [False]
-
-    
-
-    @staticmethod
-    def Render(Board):
-        Width=len(Board.Board[0])
-        Height=len(Board.Board)
-        Output=[]
-        for Y in range(Height):
-            Output.append("|".join([ConnectFour._FormatPiece(Board.Board[Y][X]) for X in range(Width)]))
-        print(f"\n{('--+'*Width)[:-1]}\n".join(Output))
-
-def NegMax(Board:BoardState,MoveNumber:int):
-    Width=len(Board.Board[0])
-    Height=len(Board.Board)
-    ColumnStates=[ConnectFour.ColFull(Board,X) for X in range(Width)]
-    if all(ColumnStates) == True:
-        return 0
-    
-    BestScore=-Width * Height 
-    #In the future implement it so that it only checks around the dropped peice for if its a win
-    for X in range(0,Width):
-        if ColumnStates[X] == False:
-            NewBoard=Board.CreateCopy()
-            ConnectFour.DropPiece(NewBoard,X,"Y" if MoveNumber%2 == 0 else "R")
-            if ConnectFour.CheckWin(NewBoard)[0] == True:
-                return (((Width*Height)+1)-MoveNumber)//2
-            Score=-NegMax(NewBoard,MoveNumber+1)
-            if Score > BestScore:
-                BestScore=Score
-    return BestScore
-
-
-
-
-#B=BoardState.CreateBlank(7,6)
-Moves="1224334534"
-B=BoardState(Moves,7,6)
-B.Render()
-
-#CHECK OTHER DIAG
-Move=4
-print(B.IsWinningMove(Move))
-B.State+=str(Move)
-B.Render()
-
+        while Min < Max:
+            Med = Min + (Max - Min)//2
+            if Med <= 0 and Min//2 < Med:
+                Med = Min//2
+            elif Med >= 0 and Max//2 > Med:
+                Med = Max//2
+            Score = NegMaxSolver.NegMax(Board, Med, Med + 1)
+            if Score <= Med:
+                Max = Score
+            else:
+                Min = Score
+        return Min
+NegMaxSolver.InitMoveOrder(7)
+#print(NegMaxSolver.MoveOrder)
+#exit()
 """
-for N,X in enumerate(Moves):
-    ConnectFour.DropPiece(B,int(X)-1,"Y" if N%2==0 else "R")
-ConnectFour.Render(B)
-print(NegMax(B,len(Moves)))
+B=BoardState("3642756176227637211322113551637574556",7,6)
+print(NegMax(B,-(6*7)//2,(6*7)//2))
+exit()
 """
 
+Failed=[]
+Tested=0
+TotalTime=0
+StartTime=time.time()
+for X in open("Test_L2_R1","r").readlines():
+    XSplit=X.split(" ")
+    #if abs(int(XSplit[1])) < 6:
+    B=BoardState(XSplit[0],7,6)
+    State=NegMaxSolver.Solve(B)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
+    Tested+=1
+    if State != int(XSplit[1]):
+        Failed.append([B,State,int(XSplit[1])])
+    print("Done",Tested,State,int(XSplit[1]))
+print("Tested:",Tested)
+print("Failed:",len(Failed))
+print("Average Time:",(time.time() - StartTime)/Tested)
+#Without iterative deepening - N/A,N/A

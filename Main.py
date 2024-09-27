@@ -50,49 +50,30 @@ class BoardState:
     
 
     def IsWinningMove(self,Move:int):
-        Move=Move+1
+        Move+=1
         NewState=self.State+str(Move)
         MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
         Board=BoardState._TranslateToBoard(NewState,self.Width,self.Height)
         #print(MovePos)
         #BoardState(NewState,self.Width,self.Height).Render()
         if NewState.count(str(Move)) > 3:
-            if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
+            if all(Board[MovePos[1]+X][MovePos[0]] == MovePos[2] for X in range(1,self.WinLength)):
                 return True
+            #if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
+                #return True
         
-        RowN=0
-        DiaN1=0
-        DiaN2=0
-        #print(MovePos)
-        for OX in range(-3,4):
-            NewX=MovePos[0]+OX
-            NewY=MovePos[1]+OX
-            if NewX >= 0 and NewX < self.Width:
-                if Board[MovePos[1]][NewX] == MovePos[2]:
-                    RowN+=1
-                else:
-                    RowN=0
-                if RowN >= self.WinLength:
-                    return True
-                
-                
-                if NewY >=0 and NewY < self.Height:
-                    #print(NewX,NewY)
-                    if Board[NewY][NewX] == MovePos[2]:
-                        DiaN1+=1
+        for Dir in [(1,0),(1,1),(1,-1)]:
+            Count=1
+            for Sign in [-1,1]:
+                for X in range(1,self.WinLength):
+                    NewX=MovePos[0] + (Sign*X*Dir[0])
+                    NewY=MovePos[1] + (Sign*X*Dir[1])
+                    if 0 <= NewX < self.Width and 0 <= NewY < self.Height and Board[NewY][NewX] == MovePos[2]:
+                        Count+=1
                     else:
-                        DiaN1=0
-                    if DiaN1 >= self.WinLength:
-                        return True
-            NewX=MovePos[0]-OX     
-            if NewX >= 0 and NewX < self.Width:
-                if NewY >=0 and NewY < self.Height:
-                    if Board[NewY][NewX] == MovePos[2]:
-                        DiaN2+=1
-                    else:
-                        DiaN2=0
-                    if DiaN2 >= self.WinLength:
-                        return True
+                        break
+            if Count >= self.WinLength:
+                return True
         return False
     @staticmethod
     def _FormatPiece(Piece):
@@ -178,9 +159,9 @@ class NegMaxSolver:
         return Min
 NegMaxSolver.InitMoveOrder(7)
 
-B=BoardState("3642756176227637211322113551637574556",7,6)
-print(NegMaxSolver.Solve(B,False))
-exit()
+#B=BoardState("3642756176227637211322113551637574556",7,6)
+#print(NegMaxSolver.Solve(B,False))
+#exit()
 
 
 Failed=[]

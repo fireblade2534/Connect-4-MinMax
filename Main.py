@@ -28,6 +28,7 @@ class BoardState:
         self.WinLength=WinLength
         self.MinScore=-(((Width*Height))//2)+3
         self.MaxScore=(((Width*Height)+1)//2)-3
+        self.Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
     def ColFull(self,Column:int):
         return self.State.count(str(Column+1)) >= self.Height
     
@@ -53,27 +54,54 @@ class BoardState:
         Move+=1
         NewState=self.State+str(Move)
         MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,1 if len(self.State)%2==0 else 2)
-        Board=BoardState._TranslateToBoard(NewState,self.Width,self.Height)
-        #print(MovePos)
-        #BoardState(NewState,self.Width,self.Height).Render()
-        if NewState.count(str(Move)) > 3:
-            if all(Board[MovePos[1]+X][MovePos[0]] == MovePos[2] for X in range(1,self.WinLength)):
-                return True
-            #if Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
-                #return True
+        #Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
         
-        for Dir in [(1,0),(1,1),(1,-1)]:
-            Count=1
-            for Sign in [-1,1]:
-                for X in range(1,self.WinLength):
-                    NewX=MovePos[0] + (Sign*X*Dir[0])
-                    NewY=MovePos[1] + (Sign*X*Dir[1])
-                    if 0 <= NewX < self.Width and 0 <= NewY < self.Height and Board[NewY][NewX] == MovePos[2]:
-                        Count+=1
-                    else:
-                        break
-            if Count >= self.WinLength:
+        #print(MovePos)
+        #BoardState(self.State,self.Width,self.Height).Render()
+        #print("\n")
+        #BoardState(NewState,self.Width,self.Height).Render()
+        #print(Move)
+        if NewState.count(str(Move)) > 3:
+            if self.Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and self.Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and self.Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
                 return True
+        
+        RowN=0
+        DiaN1=0
+        DiaN2=0
+        #print(MovePos)
+        for OX in range(-self.WinLength+1,self.WinLength):
+            if OX != 0:
+                NewX=MovePos[0]+OX
+                NewY=MovePos[1]+OX
+                if NewX >= 0 and NewX < self.Width:
+                    if self.Board[MovePos[1]][NewX] == MovePos[2]:
+                        RowN+=1
+                    else:
+                        RowN=0
+                    if RowN >= self.WinLength-1:
+                        #print("ROW1")
+                        return True
+                    
+                    
+                    if NewY >=0 and NewY < self.Height:
+                        #print(NewX,NewY)
+                        if self.Board[NewY][NewX] == MovePos[2]:
+                            DiaN1+=1
+                        else:
+                            DiaN1=0
+                        if DiaN1 >= self.WinLength-1:
+                            #print("DIA1")
+                            return True
+                NewX=MovePos[0]-OX     
+                if NewX >= 0 and NewX < self.Width:
+                    if NewY >=0 and NewY < self.Height:
+                        if self.Board[NewY][NewX] == MovePos[2]:
+                            DiaN2+=1
+                        else:
+                            DiaN2=0
+                        if DiaN2 >= self.WinLength-1:
+                            #print("DIA2")
+                            return True
         return False
     @staticmethod
     def _FormatPiece(Piece):
@@ -103,9 +131,9 @@ class NegMaxSolver:
         if all(ColumnStates) == True:
             return 0
         
-        for X in range(0,Board.Width):
-            if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
-                if Board.IsWinningMove(NegMaxSolver.MoveOrder[X]):
+        for X in NegMaxSolver.MoveOrder:#range(0,Board.Width):
+            if ColumnStates[X] == False:
+                if Board.IsWinningMove(X):
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
         """
         TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
@@ -125,10 +153,10 @@ class NegMaxSolver:
             if Alpha >= Beta:
                 return Beta
     
-        for X in range(0,Board.Width):
-            if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
+        for X in NegMaxSolver.MoveOrder:
+            if ColumnStates[X] == False:
                 
-                NewBoard=BoardState(f"{Board.State}{NegMaxSolver.MoveOrder[X]+1}",Board.Width,Board.Height,Board.WinLength)
+                NewBoard=BoardState(f"{Board.State}{X+1}",Board.Width,Board.Height,Board.WinLength)
                 
                 Score=-NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha,TransTable)
                 if Score >= Beta:
@@ -159,7 +187,7 @@ class NegMaxSolver:
         return Min
 NegMaxSolver.InitMoveOrder(7)
 
-#B=BoardState("3642756176227637211322113551637574556",7,6)
+#B=BoardState("6672375354252731116762237724",7,6)
 #print(NegMaxSolver.Solve(B,False))
 #exit()
 
@@ -184,3 +212,4 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #Without iterative deepening - N/A,N/A
 #With iterative deepening - 1.0694399
 #With transpositiona table v1 - 1.2
+#With Claude compute board list in init - 0.407150009

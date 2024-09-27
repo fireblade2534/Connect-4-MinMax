@@ -2,8 +2,23 @@ import copy
 import math
 import time
 class TranspositionTable:
-    def __init__(self,Size:int=81):
-        
+    def __init__(self,Size:int=256):
+        self.KeyIndex=[str(-X) for X in range(1,Size+1)]
+        self.Table={str(-X):-X for X in range(1,Size+1)}
+
+    def Put(self,Index,Value):
+        #print(self.Table,self.KeyIndex)
+        #print(self.KeyIndex[0])
+        #print(self.Table[str(Index)])
+        self.Table.pop(str(list(self.Table.keys())[0]))
+        #self.KeyIndex.pop(0)
+        self.Table[str(Index)]=Value
+        #self.KeyIndex.append(str(Index))
+
+    def Get(self,Index):
+        if Index in self.KeyIndex:
+            return self.Table[Index]
+        return 0
 
 class BoardState:
     def __init__(self,State:str,Width:int,Height:int,WinLength:int=4):
@@ -11,6 +26,8 @@ class BoardState:
         self.Width=Width
         self.Height=Height
         self.WinLength=WinLength
+        self.MinScore=-(((Width*Height))//2)+3
+        self.MaxScore=(((Width*Height)+1)//2)-3
     def ColFull(self,Column:int):
         return self.State.count(str(Column+1)) >= self.Height
     
@@ -99,7 +116,7 @@ class NegMaxSolver:
         for X in range(0,Width):
             NegMaxSolver.MoveOrder.append((Width//2)+(-X//2 if X%2==0 else math.ceil(X/2)))
     @staticmethod
-    def NegMax(Board:BoardState,Alpha:int,Beta:int):
+    def NegMax(Board:BoardState,Alpha:int,Beta:int,TransTable:TranspositionTable):
         ColumnStates=[Board.ColFull(X) for X in range(Board.Width)]
         #print("Col States",ColumnStates)
         if all(ColumnStates) == True:
@@ -109,8 +126,18 @@ class NegMaxSolver:
             if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
                 if Board.IsWinningMove(NegMaxSolver.MoveOrder[X]):
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
-
+        
+        TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
+        Hash=[]
+        for X in TempHash:
+            Hash+=X
+        Hash="".join(Hash)
         Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
+
+        Transvalue=int(TransTable.Get(Hash))
+        if Transvalue != 0:
+            Max=Transvalue + Board.MinScore - 1
+
         if Beta > Max:
             Beta=Max
             if Alpha >= Beta:
@@ -121,24 +148,28 @@ class NegMaxSolver:
                 
                 NewBoard=BoardState(f"{Board.State}{NegMaxSolver.MoveOrder[X]+1}",Board.Width,Board.Height,Board.WinLength)
                 
-                Score=-NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha)
+                Score=-NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha,TransTable)
                 if Score >= Beta:
                     return Score
                 if Score > Alpha:
                     Alpha=Score
+        TransTable.Put(Hash,str(Alpha - Board.MinScore + 1))
         return Alpha
     @staticmethod
-    def Solve(Board:BoardState):
+    def Solve(Board:BoardState,Weak:bool=False,TableSize:int=81):
+        TransTable=TranspositionTable(TableSize)
         Min=-(((Board.Width*Board.Height))-Board.MoveNumber())//2
         Max=(((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
-
+        if Weak:
+            Min=-1
+            Max=1
         while Min < Max:
             Med = Min + (Max - Min)//2
             if Med <= 0 and Min//2 < Med:
                 Med = Min//2
             elif Med >= 0 and Max//2 > Med:
                 Med = Max//2
-            Score = NegMaxSolver.NegMax(Board, Med, Med + 1)
+            Score = NegMaxSolver.NegMax(Board, Med, Med + 1,TransTable)
             if Score <= Med:
                 Max = Score
             else:
@@ -161,7 +192,7 @@ for X in open("Test_L2_R1","r").readlines():
     XSplit=X.split(" ")
     #if abs(int(XSplit[1])) < 6:
     B=BoardState(XSplit[0],7,6)
-    State=NegMaxSolver.Solve(B)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
+    State=NegMaxSolver.Solve(B,False)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
     Tested+=1
     if State != int(XSplit[1]):
         Failed.append([B,State,int(XSplit[1])])
@@ -169,4 +200,7 @@ for X in open("Test_L2_R1","r").readlines():
 print("Tested:",Tested)
 print("Failed:",len(Failed))
 print("Average Time:",(time.time() - StartTime)/Tested)
+#Test_L2_R1:
 #Without iterative deepening - N/A,N/A
+#With iterative deepening - 1.0694399
+#With transpositiona table v1 - 

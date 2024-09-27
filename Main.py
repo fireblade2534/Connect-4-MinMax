@@ -196,7 +196,7 @@ Failed=[]
 Tested=0
 TotalTime=0
 StartTime=time.time()
-for X in open("Test_L2_R1","r").readlines():
+for X in open("Test_L1_R1","r").readlines():
     XSplit=X.split(" ")
     #if abs(int(XSplit[1])) < 6:
     B=BoardState(XSplit[0],7,6)

@@ -126,18 +126,19 @@ class NegMaxSolver:
             if ColumnStates[NegMaxSolver.MoveOrder[X]] == False:
                 if Board.IsWinningMove(NegMaxSolver.MoveOrder[X]):
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
-        
+        """
         TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
         Hash=[]
         for X in TempHash:
-            Hash+=X
+            Hash+=[str(Y) for Y in X]
         Hash="".join(Hash)
+        """
         Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
-
+        """
         Transvalue=int(TransTable.Get(Hash))
         if Transvalue != 0:
             Max=Transvalue + Board.MinScore - 1
-
+        """
         if Beta > Max:
             Beta=Max
             if Alpha >= Beta:
@@ -153,7 +154,7 @@ class NegMaxSolver:
                     return Score
                 if Score > Alpha:
                     Alpha=Score
-        TransTable.Put(Hash,str(Alpha - Board.MinScore + 1))
+        #TransTable.Put(Hash,Alpha - Board.MinScore + 1)
         return Alpha
     @staticmethod
     def Solve(Board:BoardState,Weak:bool=False,TableSize:int=81):
@@ -203,4 +204,4 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #Test_L2_R1:
 #Without iterative deepening - N/A,N/A
 #With iterative deepening - 1.0694399
-#With transpositiona table v1 - 
+#With transpositiona table v1 - 1.2

@@ -1,22 +1,23 @@
 import copy
 import math
 import time
+from collections import OrderedDict
+
 class TranspositionTable:
     def __init__(self,Size:int=256):
-        self.KeyIndex=[str(-X) for X in range(1,Size+1)]
-        self.Table={str(-X):-X for X in range(1,Size+1)}
+        self.Size=Size
+        self.Table=OrderedDict()
 
     def Put(self,Index,Value):
-        #print(self.Table,self.KeyIndex)
-        #print(self.KeyIndex[0])
-        #print(self.Table[str(Index)])
-        self.Table.pop(str(list(self.Table.keys())[0]))
-        #self.KeyIndex.pop(0)
-        self.Table[str(Index)]=Value
-        #self.KeyIndex.append(str(Index))
+        if Index in self.Table:
+            self.Table.move_to_end(Index)
+        self.Table[Index]=Value
+        if len(self.Table) > self.Size:
+            self.Table.popitem(last=False)
 
     def Get(self,Index):
-        if Index in self.KeyIndex:
+        if Index in self.Table:
+            self.Table.move_to_end(Index)
             return self.Table[Index]
         return 0
 
@@ -135,19 +136,19 @@ class NegMaxSolver:
             if ColumnStates[X] == False:
                 if Board.IsWinningMove(X):
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
-        """
-        TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
+        
+        #TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
         Hash=[]
-        for X in TempHash:
+        for X in Board.Board:
             Hash+=[str(Y) for Y in X]
         Hash="".join(Hash)
-        """
+        
         Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
-        """
+        
         Transvalue=int(TransTable.Get(Hash))
         if Transvalue != 0:
             Max=Transvalue + Board.MinScore - 1
-        """
+        
         if Beta > Max:
             Beta=Max
             if Alpha >= Beta:
@@ -163,7 +164,7 @@ class NegMaxSolver:
                     return Score
                 if Score > Alpha:
                     Alpha=Score
-        #TransTable.Put(Hash,Alpha - Board.MinScore + 1)
+        TransTable.Put(Hash,Alpha - Board.MinScore + 1)
         return Alpha
     @staticmethod
     def Solve(Board:BoardState,Weak:bool=False,TableSize:int=81):
@@ -213,3 +214,5 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With iterative deepening - 1.0694399
 #With transpositiona table v1 - 1.2
 #With Claude compute board list in init - 0.407150009
+#With fixed tranposition table - 0.2904
+#With O1 transposition table - 0.2765

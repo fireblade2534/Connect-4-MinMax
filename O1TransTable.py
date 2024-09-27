@@ -19,4 +19,4 @@ class TranspositionTable:
             self.table.move_to_end(key)
         self.table[key] = value
         if len(self.table) > self.size:
-            self.table.popitem(last=
+            self.table.popitem(last=False)

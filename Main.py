@@ -74,7 +74,7 @@ class BoardState:
             if OX != 0:
                 NewX=MovePos[0]+OX
                 NewY=MovePos[1]+OX
-                if NewX >= 0 and NewX < self.Width:
+                if 0 <= NewX < self.Width:
                     if self.Board[MovePos[1]][NewX] == MovePos[2]:
                         RowN+=1
                     else:
@@ -84,7 +84,7 @@ class BoardState:
                         return True
                     
                     
-                    if NewY >=0 and NewY < self.Height:
+                    if 0 <= NewY < self.Height:
                         #print(NewX,NewY)
                         if self.Board[NewY][NewX] == MovePos[2]:
                             DiaN1+=1
@@ -94,12 +94,13 @@ class BoardState:
                             #print("DIA1")
                             return True
                 NewX=MovePos[0]-OX     
-                if NewX >= 0 and NewX < self.Width:
-                    if NewY >=0 and NewY < self.Height:
+                if 0 <= NewX < self.Width:
+                    if 0 <= NewY < self.Height:
                         if self.Board[NewY][NewX] == MovePos[2]:
                             DiaN2+=1
                         else:
                             DiaN2=0
+                            continue
                         if DiaN2 >= self.WinLength-1:
                             #print("DIA2")
                             return True

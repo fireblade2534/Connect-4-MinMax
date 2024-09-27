@@ -47,7 +47,7 @@ class BoardState:
                 if Board[Y][int(Move)-1] == "0":
                     Board[Y][int(Move)-1]="1" if N%2==0 else "2"
                     break
-        return Board
+        return tuple([tuple(X) for X in Board])
 
     
 
@@ -139,10 +139,11 @@ class NegMaxSolver:
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
         
         #TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
-        Hash=[]
+        Hash=hash(Board.Board)
+        """Hash=[]
         for X in Board.Board:
             Hash+=X#[str(Y) for Y in X]
-        Hash="".join(Hash)
+        Hash="".join(Hash)"""
         Max=(((Board.Width*Board.Height)-1)-Board.MoveNumber())//2
         
         Transvalue=int(TransTable.Get(Hash))
@@ -218,6 +219,7 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With O1 transposition table - 0.2765
 #With strings in board list - 0.2647
 #With transpostion table size 1024 - 0.1632602
+#With in built hash function - 0.14249
 
 #Test_L1_r1:
 #Inital - N/A

@@ -177,13 +177,11 @@ class NegMaxSolver:
                 Min = Score
         return Min
 NegMaxSolver.InitMoveOrder(7)
-#print(NegMaxSolver.MoveOrder)
-#exit()
-"""
+
 B=BoardState("3642756176227637211322113551637574556",7,6)
-print(NegMax(B,-(6*7)//2,(6*7)//2))
+print(NegMaxSolver.Solve(B,False))
 exit()
-"""
+
 
 Failed=[]
 Tested=0

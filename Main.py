@@ -119,6 +119,7 @@ class BoardState:
         for Y in range(self.Height):
             Output.append("|".join([BoardState._FormatPiece(Board[Y][X]) for X in range(self.Width)]))
         print(f"\n{('--+'*self.Width)[:-1]}\n".join(Output))
+
 class NegMaxSolver:
     MoveOrder=[]
     @staticmethod
@@ -196,11 +197,11 @@ Failed=[]
 Tested=0
 TotalTime=0
 StartTime=time.time()
-for X in open("Test_L1_R1","r").readlines():
+for X in open("Test_L2_R1","r").readlines():
     XSplit=X.split(" ")
     #if abs(int(XSplit[1])) < 6:
     B=BoardState(XSplit[0],7,6)
-    State=NegMaxSolver.Solve(B,False)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
+    State=NegMaxSolver.Solve(B,False,TableSize=8024)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
     Tested+=1
     if State != int(XSplit[1]):
         Failed.append([B,State,int(XSplit[1])])
@@ -216,3 +217,6 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With fixed tranposition table - 0.2904
 #With O1 transposition table - 0.2765
 #With strings in board list - 0.2647
+#With transpostion table size 1024 - 0.1632602
+#Test_L1_r1:
+#Inital - N/A

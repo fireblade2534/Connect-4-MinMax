@@ -126,11 +126,9 @@ class BoardState:
                     Row.append("🟡")
                 else:
                     Row.append("  ")
-               
-        Output=[]
-        for Y in range(self.Height):
-            Output.append("|".join([BoardState._FormatPiece(Board[Y][X]) for X in range(self.Width)]))
+            Output.append("|".join(Row))
         print(f"\n{('--+'*self.Width)[:-1]}\n".join(Output))
+        
 
 class NegMaxSolver:
     MoveOrder=[]

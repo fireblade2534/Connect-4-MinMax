@@ -29,11 +29,13 @@ class BoardState:
         self.WinLength=WinLength
         self.MinScore=-(((Width*Height))//2)+3
         self.MaxScore=(((Width*Height)+1)//2)-3
-        self.Columns=[0]*self.Width
+        self.Columns=[(Height + 1) * i for i in range(Width)]
         self.Board=[0,0]
-        self.TranslateToBoard(self.State,self.Width,self.Height)
+        self.TranslateToBoard()
+
+        self.BitShifts=[1,self.Height,self.Height+1,self.Height+2]
     def ColFull(self,Column:int):
-        return self.State.count(str(Column+1)) >= self.Height
+        return self.Columns[Column] - ((self.Height + 1)*Column)  >= self.Height
     
     def BoardFull(self):
         return len(self.State) >= self.Width * self.Height
@@ -46,83 +48,31 @@ class BoardState:
 
     def TranslateToBoard(self):
 
-        for N,Move in State:
-            self.Board[N%2]|=1 << (self.Height * (int(Move) - 1)) + self.Columns[int(Move) - 1]
+        for N,Move in enumerate(self.State):
+            #((self.Width * self.Columns[int(Move) - 1]) + (int(Move) - 1))
+            self.Board[N%2]|=1 << self.Columns[int(Move)-1]
+            
             self.Columns[int(Move) - 1]+=1
-    
 
     def IsWinningMove(self,Move:int):
-        Move+=1
-        NewState=self.State+str(Move)
-        MovePos=(Move-1,self.Height-self.State.count(str(Move))-1,"1" if len(self.State)%2==0 else "2")
-        #Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
+        PlayerIndex=(len(self.State))%2
+        Move=int(Move)
+        TempBitBoard=self.Board[PlayerIndex] | (1 << self.Columns[Move])
         
-        #print(MovePos)
-        #BoardState(self.State,self.Width,self.Height).Render()
-        #print("\n")
-        #BoardState(NewState,self.Width,self.Height).Render()
-        #print(Move)
-        if NewState.count(str(Move)) > 3:
-            if self.Board[MovePos[1]+1][MovePos[0]] == MovePos[2] and self.Board[MovePos[1]+2][MovePos[0]] == MovePos[2] and self.Board[MovePos[1]+3][MovePos[0]] == MovePos[2]:
+        for Shift in self.BitShifts:
+            Test = TempBitBoard & (TempBitBoard >> Shift)
+            if Test & (Test >> 2 * Shift):
                 return True
-        
-        RowN=0
-        DiaN1=0
-        DiaN2=0
-        #print(MovePos)
-        for OX in range(-self.WinLength+1,self.WinLength):
-            if OX != 0:
-                NewX=MovePos[0]+OX
-                NewY=MovePos[1]+OX
-                if 0 <= NewX < self.Width:
-                    if self.Board[MovePos[1]][NewX] == MovePos[2]:
-                        RowN+=1
-                    else:
-                        RowN=0
-                    if RowN >= self.WinLength-1:
-                        #print("ROW1")
-                        return True
-                    
-                    
-                    if 0 <= NewY < self.Height:
-                        #print(NewX,NewY)
-                        if self.Board[NewY][NewX] == MovePos[2]:
-                            DiaN1+=1
-                        else:
-                            DiaN1=0
-                        if DiaN1 >= self.WinLength-1:
-                            #print("DIA1")
-                            return True
-                NewX=MovePos[0]-OX     
-                if 0 <= NewX < self.Width:
-                    if 0 <= NewY < self.Height:
-                        if self.Board[NewY][NewX] == MovePos[2]:
-                            DiaN2+=1
-                        else:
-                            DiaN2=0
-                            continue
-                        if DiaN2 >= self.WinLength-1:
-                            #print("DIA2")
-                            return True
         return False
-    @staticmethod
-    def _FormatPiece(Piece):
-        if Piece == "1":
-            return "🔴"
-        if Piece == "2":
-            return "🟡"
-        if Piece == "0":
-            return "  "
-    
     def Render(self):
         Output=[]
-        for Y in range(self.Height):
+        for Y in range(self.Height-1,-1,-1):
             Row=[]
             for X in range(self.Width):
-                Pos=1 << (Y * self.Height) + X
+                Pos=1 << ((self.Height + 1) * X)+Y
                 if self.Board[0] & Pos == Pos:
                     Row.append("🔴")
-                elif self.Board[0] & Pos == Pos:
+                elif self.Board[1] & Pos == Pos:
                     Row.append("🟡")
                 else:
                     Row.append("  ")
@@ -146,10 +96,11 @@ class NegMaxSolver:
         for X in NegMaxSolver.MoveOrder:#range(0,Board.Width):
             if ColumnStates[X] == False:
                 if Board.IsWinningMove(X):
+                    #print(X,Board.MoveNumber())
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
         
         #TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
-        Hash=hash(Board.Board)
+        Hash=hash(tuple(Board.Board))
         """Hash=[]
         for X in Board.Board:
             Hash+=X#[str(Y) for Y in X]
@@ -198,11 +149,13 @@ class NegMaxSolver:
                 Min = Score
         return Min
 NegMaxSolver.InitMoveOrder(7)
-
-#B=BoardState("6672375354252731116762237724",7,6)
-#print(NegMaxSolver.Solve(B,False))
-#exit()
-
+"""
+B=BoardState("67152117737262713366376314254",7,6)
+B.Render()
+print(B.IsWinningMove(4))
+print(NegMaxSolver.Solve(B,False))
+exit()
+"""
 
 Failed=[]
 Tested=0
@@ -230,6 +183,7 @@ print("Average Time:",(time.time() - StartTime)/Tested)
 #With strings in board list - 0.2647
 #With transpostion table size 1024 - 0.1632602
 #With in built hash function - 0.14249
+#With bitboard - 0.07
 
 #Test_L1_r1:
 #Inital - N/A

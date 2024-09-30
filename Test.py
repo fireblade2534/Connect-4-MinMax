@@ -1,212 +1,238 @@
 import math
-from collections import OrderedDict
+import time
+from collections import deque
 
 class TranspositionTable:
-    def __init__(self, size: int = 256):
+    def __init__(self, size=1024):
         self.size = size
-        self.table = OrderedDict()
+        self.table = {}
+        self.order = deque()
 
-    def put(self, key: str, value: int):
+    def put(self, key, value):
         if key in self.table:
-            self.table.move_to_end(key)
+            # Move the key to the end to mark it as recently used
+            self.order.remove(key)
+        elif len(self.table) >= self.size:
+            # Remove the oldest entry
+            oldest = self.order.popleft()
+            del self.table[oldest]
         self.table[key] = value
-        if len(self.table) > self.size:
-            self.table.popitem(last=False)
+        self.order.append(key)
 
-    def get(self, key: str):
+    def get(self, key):
         if key in self.table:
-            self.table.move_to_end(key)
+            # Move the key to the end to mark it as recently used
+            self.order.remove(key)
+            self.order.append(key)
             return self.table[key]
-        return 0
+        return None
 
 class BoardState:
-    def __init__(self, state: str, width: int, height: int, win_length: int = 4):
-        self.state = state  # String representing the sequence of moves
+    def __init__(self, state="", width=7, height=6, win_length=4):
         self.width = width
         self.height = height
         self.win_length = win_length
-        self.min_score = -((width * height) // 2) + 3
-        self.max_score = ((width * height + 1) // 2) - 3
-        self.board = self._translate_to_board()
 
-    def is_column_full(self, column: int) -> bool:
-        # Since state is a string of moves, count the occurrences of the column
-        return self.state.count(str(column + 1)) >= self.height
+        self.min_score = -((self.width * self.height) // 2) + 3
+        self.max_score = ((self.width * self.height + 1) // 2) - 3
 
-    def is_board_full(self) -> bool:
-        return len(self.state) >= self.width * self.height
+        self.moves = len(state)
+        # Initialize bitboards for both players
+        self.board = [0, 0]
 
-    def move_number(self) -> int:
-        return len(self.state)
+        # Initialize column heights
+        self.heights = [0] * self.width
 
-    def _translate_to_board(self):
-        # Initialize an empty board
-        board = [[0 for _ in range(self.width)] for _ in range(self.height)]
-        # Track the next available row in each column
-        next_row = [self.height - 1] * self.width
+        # Precompute bit shifts for win detection
+        self.bit_shifts = [1, self.height + 1, self.height, self.height + 2]
 
-        for move_number, move in enumerate(self.state):
-            col = int(move) - 1
-            if 0 <= col < self.width and next_row[col] >= 0:
-                board[next_row[col]][col] = 1 if move_number % 2 == 0 else 2
-                next_row[col] -= 1
-        return board
+        # Translate the initial state into bitboards
+        self._translate_to_board(state)
 
-    def is_winning_move(self, move: int) -> bool:
-        # Adjust move to 0-based index
-        col = move
-        if self.is_column_full(move):
-            return False  # Cannot make a move in a full column
+    def _translate_to_board(self, state):
+        for move_char in state:
+            move = int(move_char) - 1  # Convert to 0-based index
+            if not (0 <= move < self.width):
+                raise ValueError(f"Invalid move: {move_char}")
+            player = self.moves % 2
+            bit_position = self.heights[move] + move * (self.height + 1)
+            self.board[player] |= 1 << bit_position
+            self.heights[move] += 1
+            self.moves += 1
 
-        # Determine the row where the piece will land
-        row = self.height - self.state.count(str(move + 1)) - 1
-        player = 1 if len(self.state) % 2 == 0 else 2
+    def make_move(self, column):
+        bit_position = self.heights[column] + column * (self.height + 1)
+        bit = 1 << bit_position
+        current_player = self.moves % 2
+        self.board[current_player] |= bit  # Set the bit using OR
+        self.heights[column] += 1
+        self.moves += 1
 
-        # Temporarily place the piece
-        self.board[row][col] = player
+    def undo_move(self, column):
+        self.moves -= 1
+        self.heights[column] -= 1
+        bit_position = self.heights[column] + column * (self.height + 1)
+        bit = 1 << bit_position
+        current_player = self.moves % 2
+        self.board[current_player] &= ~bit  # Clear the bit using AND NOT
 
-        # Check all directions for a win
-        directions = [
-            (0, 1),  # Vertical
-            (1, 0),  # Horizontal
-            (1, 1),  # Diagonal /
-            (1, -1)  # Diagonal \
-        ]
+    def is_column_full(self, column):
+        return self.heights[column] >= self.height
 
-        for dx, dy in directions:
-            count = 1
-            # Check in the positive direction
-            x, y = col + dx, row + dy
-            while 0 <= x < self.width and 0 <= y < self.height and self.board[y][x] == player:
-                count += 1
-                x += dx
-                y += dy
+    def is_board_full(self):
+        return self.moves >= self.width * self.height
 
-            # Check in the negative direction
-            x, y = col - dx, row - dy
-            while 0 <= x < self.width and 0 <= y < self.height and self.board[y][x] == player:
-                count += 1
-                x -= dx
-                y -= dy
+    def get_key(self):
+        # Combine both bitboards into a single unique key
+        return self.board[0] | (self.board[1] << (self.width * (self.height + 1)))
 
-            if count >= self.win_length:
-                # Remove the temporarily placed piece
-                self.board[row][col] = 0
+    def is_winning_move(self, column):
+        bit_position = self.heights[column] + column * (self.height + 1)
+        bit = 1 << bit_position
+        current_player = self.moves % 2  # Player who is about to make the move
+        temp = self.board[current_player] | bit
+        for shift in self.bit_shifts:
+            m = temp & (temp >> shift)
+            if m & (m >> (2 * shift)):
                 return True
-
-        # Remove the temporarily placed piece
-        self.board[row][col] = 0
         return False
 
-    @staticmethod
-    def _format_piece(piece: int) -> str:
-        if piece == 1:
-            return "🔴"
-        if piece == 2:
-            return "🟡"
-        return "  "
-
     def render(self):
-        board_str = []
-        for row in self.board:
-            board_str.append("|".join([self._format_piece(cell) for cell in row]))
-        separator = "\n" + ("--+" * self.width)[:-1] + "\n"
-        print(separator.join(board_str))
-
-    def get_hash(self) -> str:
-        # Create a unique hash for the current board state
-        return ''.join([''.join(map(str, row)) for row in self.board])
+        grid = [[' ' for _ in range(self.width)] for _ in range(self.height)]
+        for x in range(self.width):
+            for y in range(self.heights[x]):
+                bit_pos = y + x * (self.height + 1)
+                if self.board[0] & (1 << bit_pos):
+                    grid[y][x] = "🔴"
+                elif self.board[1] & (1 << bit_pos):
+                    grid[y][x] = "🟡"
+        output = "\n".join(["|".join(row) for row in reversed(grid)])
+        separator = "\n" + "--" * self.width + "-"
+        print(separator.join(output.split("\n")))
 
 class NegMaxSolver:
-    move_order = []
+    def __init__(self, width=7):
+        self.move_order = self.init_move_order(width)
 
     @staticmethod
-    def init_move_order(width: int):
-        # Order moves starting from the center column for better pruning
+    def init_move_order(width):
         center = width // 2
-        NegMaxSolver.move_order = [center]
+        order = [center]
         for offset in range(1, center + 1):
             if center - offset >= 0:
-                NegMaxSolver.move_order.append(center - offset)
+                order.append(center - offset)
             if center + offset < width:
-                NegMaxSolver.move_order.append(center + offset)
+                order.append(center + offset)
+        return order
 
-    @staticmethod
-    def neg_max(board: BoardState, alpha: int, beta: int, trans_table: TranspositionTable) -> int:
-        # Generate a unique key for the current board state
-        key = board.get_hash()
-        # Check transposition table
+    def negamax(self, board, alpha, beta, trans_table):
+        key = board.get_key()
         trans_value = trans_table.get(key)
-        if trans_value != 0:
-            return trans_value + board.min_score - 1
+        if trans_value is not None:
+            return trans_value
 
-        column_states = [board.is_column_full(x) for x in range(board.width)]
-        if all(column_states):
+        if board.is_board_full():
             return 0  # Draw
 
-        max_score = ((board.width * board.height - 1) - board.move_number()) // 2
+        # Check for immediate win
+        for move in self.move_order:
+            if not board.is_column_full(move):
+                if board.is_winning_move(move):
+                    # The score is how soon a win can be achieved
+                    return ((board.width * board.height + 1) - board.moves) // 2
 
+        max_score = ((board.width * board.height - 1) - board.moves) // 2
         if beta > max_score:
             beta = max_score
             if alpha >= beta:
                 return beta
 
-        # Order moves to improve pruning
-        for x in NegMaxSolver.move_order:
-            if not column_states[x]:
-                if board.is_winning_move(x):
-                    return (((board.width * board.height) + 1) - board.move_number()) // 2
+        for move in self.move_order:
+            if not board.is_column_full(move):
+                board.make_move(move)
+                score = -self.negamax(board, -beta, -alpha, trans_table)
+                board.undo_move(move)
 
-        # After checking immediate wins, proceed with recursive search
-        for x in NegMaxSolver.move_order:
-            if not column_states[x]:
-                new_state = board.state + str(x + 1)
-                new_board = BoardState(new_state, board.width, board.height, board.win_length)
-                score = -NegMaxSolver.neg_max(new_board, -beta, -alpha, trans_table)
                 if score >= beta:
                     return score
                 if score > alpha:
                     alpha = score
 
-        # Store the result in the transposition table
-        trans_table.put(key, alpha - board.min_score + 1)
+        trans_table.put(key, alpha)  # Store the exact score
         return alpha
 
-    @staticmethod
-    def solve(board: BoardState, weak: bool = False, table_size: int = 512) -> int:
+    def solve(self, board, weak=False, table_size=1024):
         trans_table = TranspositionTable(table_size)
-        min_score = -((board.width * board.height) - board.move_number()) // 2
-        max_score = ((board.width * board.height + 1) - board.move_number()) // 2
+        min_score = -(board.width * board.height) // 2
+        max_score = (board.width * board.height + 1) // 2
 
         if weak:
             min_score = -1
             max_score = 1
 
-        alpha = min_score
-        beta = max_score
+        while min_score < max_score:
+            mid = (min_score + max_score) // 2
+            score = self.negamax(board, mid, mid + 1, trans_table)
+            if score <= mid:
+                max_score = score
+            else:
+                min_score = score
+        return min_score
 
-        return NegMaxSolver.neg_max(board, alpha, beta, trans_table)
+# Initialize the solver with the desired board width
+solver = NegMaxSolver(width=7)
 
-# Initialize move order for a standard Connect Four board
-NEG_MAX_WIDTH = 7
-NegMaxSolver.init_move_order(NEG_MAX_WIDTH)
+def main():
+    failed = []
+    tested = 0
+    total_time = 0
+    start_time = time.time()
 
-import time
-Failed=[]
-Tested=0
-TotalTime=0
-StartTime=time.time()
-for X in open("Test_L2_R1","r").readlines():
-    
-    XSplit=X.split(" ")
+    try:
+        with open("Test_L2_R1", "r") as file:
+            for line in file:
+                parts = line.strip().split()
+                if not parts:
+                    continue
+                state_str, expected_str = parts
+                expected = int(expected_str)
 
-    #if abs(int(XSplit[1])) < 6:
-    B=BoardState(XSplit[0],7,6)
-    State=NegMaxSolver.solve(B,False,1024)#NegMax(B,-1,1)#-(6*7)//2,(6*7)//2)
-    Tested+=1
-    if State != int(XSplit[1]):
-        Failed.append([B,State,int(XSplit[1])])
-    print("Done",Tested,State,int(XSplit[1]))
-print("Tested:",Tested)
-print("Failed:",len(Failed))
-print("Average Time:",(time.time() - StartTime)/Tested)
+                try:
+                    board = BoardState(state=state_str, width=7, height=6)
+                except ValueError as ve:
+                    print(f"Invalid test case {tested + 1}: {ve}")
+                    failed.append((state_str, 'Invalid Move', expected))
+                    tested += 1
+                    continue
+
+                test_start = time.time()
+                score = solver.solve(board, weak=False, table_size=8024)
+                test_end = time.time()
+                elapsed = test_end - test_start
+                total_time += elapsed
+
+                tested += 1
+
+                if score != expected:
+                    failed.append((state_str, score, expected))
+
+                print(f"Done {tested}: Score={score}, Expected={expected}")
+    except FileNotFoundError:
+        print("Test file 'Test_L1_R1' not found.")
+        return
+
+    end_time = time.time()
+    overall_elapsed = end_time - start_time
+    avg_time = total_time / tested if tested else 0
+
+    print(f"\nTested: {tested}")
+    print(f"Failed: {len(failed)}")
+    if failed:
+        print("Failed Cases:")
+        for state, score, expected in failed:
+            print(f"State: {state}, Score: {score}, Expected: {expected}")
+    print(f"Overall Time: {overall_elapsed:.6f} seconds")
+    print(f"Average Time per Test: {avg_time:.6f} seconds")
+
+if __name__ == "__main__":
+        main()

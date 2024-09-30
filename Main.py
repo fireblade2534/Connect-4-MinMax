@@ -29,6 +29,7 @@ class BoardState:
         self.WinLength=WinLength
         self.MinScore=-(((Width*Height))//2)+3
         self.MaxScore=(((Width*Height)+1)//2)-3
+        self.Moves=len(self.State)
         self.Columns=[(Height + 1) * i for i in range(Width)]
         self.Board=[0,0]
         self.TranslateToBoard()
@@ -38,10 +39,10 @@ class BoardState:
         return self.Columns[Column] - ((self.Height + 1)*Column)  >= self.Height
     
     def BoardFull(self):
-        return len(self.State) >= self.Width * self.Height
+        return self.Moves >= self.Width * self.Height
     
     def MoveNumber(self):
-        return len(self.State)
+        return self.Moves
 
     def GetMask(self):
         return self.Board[0] | self.Board[1]
@@ -55,9 +56,8 @@ class BoardState:
             self.Columns[int(Move) - 1]+=1
 
     def IsWinningMove(self,Move:int):
-        PlayerIndex=(len(self.State))%2
         Move=int(Move)
-        TempBitBoard=self.Board[PlayerIndex] | (1 << self.Columns[Move])
+        TempBitBoard=self.Board[self.Moves%2] | (1 << self.Columns[Move])
         
         for Shift in self.BitShifts:
             Test = TempBitBoard & (TempBitBoard >> Shift)
@@ -161,7 +161,7 @@ Failed=[]
 Tested=0
 TotalTime=0
 StartTime=time.time()
-for X in open("Test_L2_R1","r").readlines():
+for X in open("Test_L1_R1","r").readlines():
     XSplit=X.split(" ")
     #if abs(int(XSplit[1])) < 6:
     B=BoardState(XSplit[0],7,6)

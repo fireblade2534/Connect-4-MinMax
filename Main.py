@@ -29,7 +29,9 @@ class BoardState:
         self.WinLength=WinLength
         self.MinScore=-(((Width*Height))//2)+3
         self.MaxScore=(((Width*Height)+1)//2)-3
-        self.Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
+        self.Columns=[0]*self.Width
+        self.Board=[0,0]
+        self.TranslateToBoard(self.State,self.Width,self.Height)
     def ColFull(self,Column:int):
         return self.State.count(str(Column+1)) >= self.Height
     
@@ -39,16 +41,14 @@ class BoardState:
     def MoveNumber(self):
         return len(self.State)
 
-    @staticmethod
-    def _TranslateToBoard(State:str,Width:int,Height:int):
-        Board=[["0" for X in range(Width)] for Y in range(Height)]
-        for N,Move in enumerate(State):
-            for Y in range(Height - 1,-1,-1):
-                if Board[Y][int(Move)-1] == "0":
-                    Board[Y][int(Move)-1]="1" if N%2==0 else "2"
-                    break
-        return tuple([tuple(X) for X in Board])
+    def GetMask(self):
+        return self.Board[0] | self.Board[1]
 
+    def TranslateToBoard(self):
+
+        for N,Move in State:
+            self.Board[N%2]|=1 << (self.Height * (int(Move) - 1)) + self.Columns[int(Move) - 1]
+            self.Columns[int(Move) - 1]+=1
     
 
     def IsWinningMove(self,Move:int):
@@ -115,7 +115,18 @@ class BoardState:
             return "  "
     
     def Render(self):
-        Board=BoardState._TranslateToBoard(self.State,self.Width,self.Height)
+        Output=[]
+        for Y in range(self.Height):
+            Row=[]
+            for X in range(self.Width):
+                Pos=1 << (Y * self.Height) + X
+                if self.Board[0] & Pos == Pos:
+                    Row.append("🔴")
+                elif self.Board[0] & Pos == Pos:
+                    Row.append("🟡")
+                else:
+                    Row.append("  ")
+               
         Output=[]
         for Y in range(self.Height):
             Output.append("|".join([BoardState._FormatPiece(Board[Y][X]) for X in range(self.Width)]))

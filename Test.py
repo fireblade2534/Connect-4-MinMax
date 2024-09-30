@@ -1,238 +1,232 @@
-import math
-import time
-from collections import deque
+import sys
 
-class TranspositionTable:
-    def __init__(self, size=1024):
-        self.size = size
-        self.table = {}
-        self.order = deque()
+class Connect4:
+    ROWS = 6
+    COLS = 7
 
-    def put(self, key, value):
-        if key in self.table:
-            # Move the key to the end to mark it as recently used
-            self.order.remove(key)
-        elif len(self.table) >= self.size:
-            # Remove the oldest entry
-            oldest = self.order.popleft()
-            del self.table[oldest]
-        self.table[key] = value
-        self.order.append(key)
+    def __init__(self):
+        # Initialize an empty board
+        self.board = [[0 for _ in range(self.COLS)] for _ in range(self.ROWS)]
 
-    def get(self, key):
-        if key in self.table:
-            # Move the key to the end to mark it as recently used
-            self.order.remove(key)
-            self.order.append(key)
-            return self.table[key]
-        return None
+    def copy(self):
+        new_board = Connect4()
+        new_board.board = [row.copy() for row in self.board]
+        return new_board
 
-class BoardState:
-    def __init__(self, state="", width=7, height=6, win_length=4):
-        self.width = width
-        self.height = height
-        self.win_length = win_length
-
-        self.min_score = -((self.width * self.height) // 2) + 3
-        self.max_score = ((self.width * self.height + 1) // 2) - 3
-
-        self.moves = len(state)
-        # Initialize bitboards for both players
-        self.board = [0, 0]
-
-        # Initialize column heights
-        self.heights = [0] * self.width
-
-        # Precompute bit shifts for win detection
-        self.bit_shifts = [1, self.height + 1, self.height, self.height + 2]
-
-        # Translate the initial state into bitboards
-        self._translate_to_board(state)
-
-    def _translate_to_board(self, state):
-        for move_char in state:
-            move = int(move_char) - 1  # Convert to 0-based index
-            if not (0 <= move < self.width):
-                raise ValueError(f"Invalid move: {move_char}")
-            player = self.moves % 2
-            bit_position = self.heights[move] + move * (self.height + 1)
-            self.board[player] |= 1 << bit_position
-            self.heights[move] += 1
-            self.moves += 1
-
-    def make_move(self, column):
-        bit_position = self.heights[column] + column * (self.height + 1)
-        bit = 1 << bit_position
-        current_player = self.moves % 2
-        self.board[current_player] |= bit  # Set the bit using OR
-        self.heights[column] += 1
-        self.moves += 1
-
-    def undo_move(self, column):
-        self.moves -= 1
-        self.heights[column] -= 1
-        bit_position = self.heights[column] + column * (self.height + 1)
-        bit = 1 << bit_position
-        current_player = self.moves % 2
-        self.board[current_player] &= ~bit  # Clear the bit using AND NOT
-
-    def is_column_full(self, column):
-        return self.heights[column] >= self.height
-
-    def is_board_full(self):
-        return self.moves >= self.width * self.height
-
-    def get_key(self):
-        # Combine both bitboards into a single unique key
-        return self.board[0] | (self.board[1] << (self.width * (self.height + 1)))
-
-    def is_winning_move(self, column):
-        bit_position = self.heights[column] + column * (self.height + 1)
-        bit = 1 << bit_position
-        current_player = self.moves % 2  # Player who is about to make the move
-        temp = self.board[current_player] | bit
-        for shift in self.bit_shifts:
-            m = temp & (temp >> shift)
-            if m & (m >> (2 * shift)):
+    def make_move(self, col, player):
+        """
+        Apply the move to the board.
+        :param col: Column to drop the piece (0-indexed)
+        :param player: 1 or -1
+        :return: True if move is successful, False otherwise
+        """
+        for row in reversed(range(self.ROWS)):
+            if self.board[row][col] == 0:
+                self.board[row][col] = player
                 return True
-        return False
+        return False  # Column is full
 
-    def render(self):
-        grid = [[' ' for _ in range(self.width)] for _ in range(self.height)]
-        for x in range(self.width):
-            for y in range(self.heights[x]):
-                bit_pos = y + x * (self.height + 1)
-                if self.board[0] & (1 << bit_pos):
-                    grid[y][x] = "🔴"
-                elif self.board[1] & (1 << bit_pos):
-                    grid[y][x] = "🟡"
-        output = "\n".join(["|".join(row) for row in reversed(grid)])
-        separator = "\n" + "--" * self.width + "-"
-        print(separator.join(output.split("\n")))
+    def get_valid_moves(self):
+        """
+        Return a list of columns that are not full.
+        """
+        return [c for c in range(self.COLS) if self.board[0][c] == 0]
 
-class NegMaxSolver:
-    def __init__(self, width=7):
-        self.move_order = self.init_move_order(width)
+    def is_full(self):
+        """
+        Check if the board is full.
+        """
+        return all(self.board[0][c] != 0 for c in range(self.COLS))
 
-    @staticmethod
-    def init_move_order(width):
-        center = width // 2
-        order = [center]
-        for offset in range(1, center + 1):
-            if center - offset >= 0:
-                order.append(center - offset)
-            if center + offset < width:
-                order.append(center + offset)
-        return order
+    def check_winner(self):
+        """
+        Check if there's a winner.
+        :return: 1 if Player 1 wins, -1 if Player 2 wins, 0 otherwise
+        """
+        # Check horizontal, vertical, and both diagonals
+        for row in range(self.ROWS):
+            for col in range(self.COLS):
+                if self.board[row][col] == 0:
+                    continue
+                player = self.board[row][col]
+                # Check horizontal
+                if col + 3 < self.COLS and all(self.board[row][col+i] == player for i in range(4)):
+                    return player
+                # Check vertical
+                if row + 3 < self.ROWS and all(self.board[row+i][col] == player for i in range(4)):
+                    return player
+                # Check diagonal /
+                if row + 3 < self.ROWS and col + 3 < self.COLS and all(self.board[row+i][col+i] == player for i in range(4)):
+                    return player
+                # Check diagonal \
+                if row - 3 >= 0 and col + 3 < self.COLS and all(self.board[row-i][col+i] == player for i in range(4)):
+                    return player
+        return 0  # No winner
 
-    def negamax(self, board, alpha, beta, trans_table):
-        key = board.get_key()
-        trans_value = trans_table.get(key)
-        if trans_value is not None:
-            return trans_value
+    def evaluate_window(self, window, player):
+        """
+        Evaluate a window of four cells.
+        """
+        score = 0
+        opponent = -player
 
-        if board.is_board_full():
-            return 0  # Draw
+        if window.count(player) == 4:
+            score += 100
+        elif window.count(player) == 3 and window.count(0) == 1:
+            score += 5
+        elif window.count(player) == 2 and window.count(0) == 2:
+            score += 2
 
-        # Check for immediate win
-        for move in self.move_order:
-            if not board.is_column_full(move):
-                if board.is_winning_move(move):
-                    # The score is how soon a win can be achieved
-                    return ((board.width * board.height + 1) - board.moves) // 2
+        if window.count(opponent) == 3 and window.count(0) == 1:
+            score -= 4
 
-        max_score = ((board.width * board.height - 1) - board.moves) // 2
-        if beta > max_score:
-            beta = max_score
-            if alpha >= beta:
-                return beta
+        return score
 
-        for move in self.move_order:
-            if not board.is_column_full(move):
-                board.make_move(move)
-                score = -self.negamax(board, -beta, -alpha, trans_table)
-                board.undo_move(move)
+    def score_position(self, player):
+        """
+        Score the board from the perspective of the given player.
+        """
+        score = 0
 
-                if score >= beta:
-                    return score
-                if score > alpha:
-                    alpha = score
+        # Score horizontal
+        for row in range(self.ROWS):
+            row_array = self.board[row]
+            for col in range(self.COLS - 3):
+                window = row_array[col:col+4]
+                score += self.evaluate_window(window, player)
 
-        trans_table.put(key, alpha)  # Store the exact score
-        return alpha
+        # Score vertical
+        for col in range(self.COLS):
+            col_array = [self.board[row][col] for row in range(self.ROWS)]
+            for row in range(self.ROWS - 3):
+                window = col_array[row:row+4]
+                score += self.evaluate_window(window, player)
 
-    def solve(self, board, weak=False, table_size=1024):
-        trans_table = TranspositionTable(table_size)
-        min_score = -(board.width * board.height) // 2
-        max_score = (board.width * board.height + 1) // 2
+        # Score positive diagonal
+        for row in range(self.ROWS - 3):
+            for col in range(self.COLS - 3):
+                window = [self.board[row+i][col+i] for i in range(4)]
+                score += self.evaluate_window(window, player)
 
-        if weak:
-            min_score = -1
-            max_score = 1
+        # Score negative diagonal
+        for row in range(3, self.ROWS):
+            for col in range(self.COLS - 3):
+                window = [self.board[row-i][col+i] for i in range(4)]
+                score += self.evaluate_window(window, player)
 
-        while min_score < max_score:
-            mid = (min_score + max_score) // 2
-            score = self.negamax(board, mid, mid + 1, trans_table)
-            if score <= mid:
-                max_score = score
-            else:
-                min_score = score
-        return min_score
+        return score
 
-# Initialize the solver with the desired board width
-solver = NegMaxSolver(width=7)
+    def is_terminal_node(self):
+        return self.check_winner() != 0 or self.is_full()
+
+    def print_board(self):
+        for row in self.board:
+            print(' '.join(['.' if cell == 0 else ('X' if cell == 1 else 'O') for cell in row]))
+        print()
+
+def negamax(board, depth, alpha, beta, player):
+    """
+    NegaMax implementation with Alpha-Beta pruning.
+    :param board: Current board state
+    :param depth: Depth limit
+    :param alpha: Alpha value for pruning
+    :param beta: Beta value for pruning
+    :param player: Current player (1 or -1)
+    :return: Tuple (score, column)
+    """
+    valid_moves = board.get_valid_moves()
+    is_terminal = board.is_terminal_node()
+    if depth == 0 or is_terminal:
+        if is_terminal:
+            winner = board.check_winner()
+            if winner == player:
+                return (float('inf'), None)
+            elif winner == -player:
+                return (float('-inf'), None)
+            else:  # Game is over, no more valid moves
+                return (0, None)
+        else:
+            return (board.score_position(player), None)
+
+    max_score = float('-inf')
+    best_col = None
+    for col in valid_moves:
+        temp_board = board.copy()
+        temp_board.make_move(col, player)
+        score, _ = negamax(temp_board, depth-1, -beta, -alpha, -player)
+        score = -score
+        if score > max_score:
+            max_score = score
+            best_col = col
+        alpha = max(alpha, score)
+        if alpha >= beta:
+            break  # Alpha-Beta pruning
+    return (max_score, best_col)
+
+def parse_move_sequence(sequence):
+    """
+    Parse a sequence of digits into a list of column moves (0-indexed).
+    Assuming the digits represent columns 1 to 7.
+    """
+    return [int(c)-1 for c in sequence if c.isdigit() and 1 <= int(c) <= 7]
 
 def main():
-    failed = []
-    tested = 0
-    total_time = 0
-    start_time = time.time()
+    import os
 
-    try:
-        with open("Test_L2_R1", "r") as file:
-            for line in file:
-                parts = line.strip().split()
-                if not parts:
-                    continue
-                state_str, expected_str = parts
-                expected = int(expected_str)
+    filename = "Test_L2_R1"
+    if not os.path.exists(filename):
+        print(f"Test file '{filename}' not found.")
+        sys.exit(1)
 
-                try:
-                    board = BoardState(state=state_str, width=7, height=6)
-                except ValueError as ve:
-                    print(f"Invalid test case {tested + 1}: {ve}")
-                    failed.append((state_str, 'Invalid Move', expected))
-                    tested += 1
-                    continue
+    game = Connect4()
 
-                test_start = time.time()
-                score = solver.solve(board, weak=False, table_size=8024)
-                test_end = time.time()
-                elapsed = test_end - test_start
-                total_time += elapsed
+    with open(filename, 'r') as file:
+        for line_num, line in enumerate(file, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                move_sequence, expected = line.split()
+                expected = float(expected)
+                moves = parse_move_sequence(move_sequence)
+            except ValueError:
+                print(f"Invalid format in line {line_num}: {line}")
+                continue
 
-                tested += 1
+            # Reset the board for each test case
+            game = Connect4()
+            current_player = 1  # Player 1 starts
 
-                if score != expected:
-                    failed.append((state_str, score, expected))
+            # Apply the move sequence
+            valid = True
+            for move in moves:
+                if not game.make_move(move, current_player):
+                    print(f"Invalid move {move+1} in line {line_num}")
+                    valid = False
+                    break
+                current_player *= -1  # Switch player
 
-                print(f"Done {tested}: Score={score}, Expected={expected}")
-    except FileNotFoundError:
-        print("Test file 'Test_L1_R1' not found.")
-        return
+            if not valid:
+                continue
 
-    end_time = time.time()
-    overall_elapsed = end_time - start_time
-    avg_time = total_time / tested if tested else 0
+            # Optionally, you can print the board
+            # print(f"Test case {line_num}:")
+            # game.print_board()
 
-    print(f"\nTested: {tested}")
-    print(f"Failed: {len(failed)}")
-    if failed:
-        print("Failed Cases:")
-        for state, score, expected in failed:
-            print(f"State: {state}, Score: {score}, Expected: {expected}")
-    print(f"Overall Time: {overall_elapsed:.6f} seconds")
-    print(f"Average Time per Test: {avg_time:.6f} seconds")
+            # Run NegaMax to evaluate the position
+            search_depth = 4  # You can adjust the depth
+            score, best_move = negamax(game, search_depth, float('-inf'), float('inf'), current_player)
+
+            # Print the results
+            print(f"Test case {line_num}:")
+            print(f"Move sequence: {move_sequence}")
+            print(f"Expected evaluation: {expected}")
+            print(f"NegaMax evaluation: {score}")
+            if best_move is not None:
+                print(f"Recommended move: Column {best_move+1}")
+            else:
+                print("No possible moves.")
+            print("-" * 30)
 
 if __name__ == "__main__":
-        main()
+    main()

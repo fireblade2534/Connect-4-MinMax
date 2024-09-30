@@ -91,13 +91,13 @@ class NegMaxSolver:
         ColumnStates=[Board.ColFull(X) for X in range(Board.Width)]
         #print("Col States",ColumnStates)
         if all(ColumnStates) == True:
-            return 0
+            return 0,-1
         
         for X in NegMaxSolver.MoveOrder:#range(0,Board.Width):
             if ColumnStates[X] == False:
                 if Board.IsWinningMove(X):
                     #print(X,Board.MoveNumber())
-                    return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2
+                    return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2,X
         
         #TempHash=BoardState._TranslateToBoard(Board.State,Board.Width,Board.Height)
         Hash=hash(tuple(Board.Board))
@@ -114,8 +114,8 @@ class NegMaxSolver:
         if Beta > Max:
             Beta=Max
             if Alpha >= Beta:
-                return Beta
-    
+                return Beta,-1
+        BestMove=-1
         for X in NegMaxSolver.MoveOrder:
             if ColumnStates[X] == False:
                 
@@ -126,8 +126,9 @@ class NegMaxSolver:
                     return Score
                 if Score > Alpha:
                     Alpha=Score
+                    BestMove=X
         TransTable.Put(Hash,Alpha - Board.MinScore + 1)
-        return Alpha
+        return Alpha,BestMove
     @staticmethod
     def Solve(Board:BoardState,Weak:bool=False,TableSize:int=81):
         TransTable=TranspositionTable(TableSize)
@@ -136,18 +137,20 @@ class NegMaxSolver:
         if Weak:
             Min=-1
             Max=1
+        BestMove=-1
         while Min < Max:
             Med = Min + (Max - Min)//2
             if Med <= 0 and Min//2 < Med:
                 Med = Min//2
             elif Med >= 0 and Max//2 > Med:
                 Med = Max//2
-            Score = NegMaxSolver.NegMax(Board, Med, Med + 1,TransTable)
+            Score,Move = NegMaxSolver.NegMax(Board, Med, Med + 1,TransTable)
             if Score <= Med:
                 Max = Score
             else:
                 Min = Score
-        return Min
+                BestMove=Move
+        return Min,BestMove
 NegMaxSolver.InitMoveOrder(7)
 """
 B=BoardState("67152117737262713366376314254",7,6)
@@ -161,7 +164,7 @@ Failed=[]
 Tested=0
 TotalTime=0
 StartTime=time.time()
-for X in open("Test_L1_R1","r").readlines():
+for X in open("Test_L2_R1","r").readlines():
     XSplit=X.split(" ")
     #if abs(int(XSplit[1])) < 6:
     B=BoardState(XSplit[0],7,6)

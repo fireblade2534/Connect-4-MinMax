@@ -55,11 +55,22 @@ class BoardState:
             
             self.Columns[int(Move) - 1]+=1
 
-    def IsWinningMove(self,Move:int):
-        Move=int(Move)
-        TempBitBoard=self.Board[self.Moves%2] | (1 << self.Columns[Move])
+    def GetNonLoseMove(self,Move:int):
+        TempBitboard=[self.Board[0],self.Board[1]]
+        TempColumns=copy.copy(self.Columns)
+        TempBitboard[self.Moves%2]|=1 << TempColumns[Move]
+        TempColumns[Move]+=1
+        for X in NegMaxSolver.MoveOrder:
+            if BoardState.IsWinningMove(X,TempBitboard,TempColumns,self.BitShifts,self.Moves+1):
+                return False
+        return True
         
-        for Shift in self.BitShifts:
+    @staticmethod
+    def IsWinningMove(Move:int,Board:list,Columns:list,BitShifts:list,Moves:int):
+        Move=int(Move)
+        TempBitBoard=Board[Moves%2] | (1 << Columns[Move])
+        
+        for Shift in BitShifts:
             Test = TempBitBoard & (TempBitBoard >> Shift)
             if Test & (Test >> 2 * Shift):
                 return True
@@ -95,7 +106,7 @@ class NegMaxSolver:
         
         for X in NegMaxSolver.MoveOrder:#range(0,Board.Width):
             if ColumnStates[X] == False:
-                if Board.IsWinningMove(X):
+                if BoardState.IsWinningMove(X,Board.Board,Board.Columns,Board.BitShifts,Board.Moves):
                     #print(X,Board.MoveNumber())
                     return (((Board.Width*Board.Height)+1)-Board.MoveNumber())//2,X
         
@@ -118,12 +129,13 @@ class NegMaxSolver:
         BestMove=-1
         for X in NegMaxSolver.MoveOrder:
             if ColumnStates[X] == False:
-                
+                #if Board.GetNonLoseMove(X):
                 NewBoard=BoardState(f"{Board.State}{X+1}",Board.Width,Board.Height,Board.WinLength)
                 
-                Score=-NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha,TransTable)
+                Score,_=NegMaxSolver.NegMax(NewBoard,-Beta,-Alpha,TransTable)
+                Score=-Score
                 if Score >= Beta:
-                    return Score
+                    return Score,X
                 if Score > Alpha:
                     Alpha=Score
                     BestMove=X
@@ -152,14 +164,11 @@ class NegMaxSolver:
                 BestMove=Move
         return Min,BestMove
 NegMaxSolver.InitMoveOrder(7)
-"""
-B=BoardState("67152117737262713366376314254",7,6)
+
+B=BoardState("123372255534145111472522133344",7,6)
 B.Render()
-print(B.IsWinningMove(4))
 print(NegMaxSolver.Solve(B,False))
 exit()
-"""
-
 Failed=[]
 Tested=0
 TotalTime=0

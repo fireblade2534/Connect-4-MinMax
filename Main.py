@@ -56,12 +56,12 @@ class BoardState:
             self.Columns[int(Move) - 1]+=1
 
     def GetNonLoseMove(self,Move:int):
-        TempBitboard=[self.Board[0],self.Board[1]]
+        TempBitboard=copy.copy(self.Board)
         TempColumns=copy.copy(self.Columns)
         TempBitboard[self.Moves%2]|=1 << TempColumns[Move]
         TempColumns[Move]+=1
         for X in NegMaxSolver.MoveOrder:
-            if BoardState.IsWinningMove(X,TempBitboard,TempColumns,self.BitShifts,self.Moves+1):
+            if BoardState.IsWinningMove(X,TempBitboard,TempColumns,self.BitShifts,self.Moves+2):
                 return False
         return True
         
@@ -164,8 +164,13 @@ class NegMaxSolver:
                 BestMove=Move
         return Min,BestMove
 NegMaxSolver.InitMoveOrder(7)
-
-B=BoardState("123372255534145111472522133344",7,6)
+#1233722555341451114725221333
+BState="1233722555341451114725221333"
+#for X in range(0,len(BState)):
+    #B=BoardState(BState[:X],7,6)
+    #B.Render()
+    #print(BState[:X],"\n","\n")
+B=BoardState(BState,7,6)
 B.Render()
 print(NegMaxSolver.Solve(B,False))
 exit()
